@@ -6,31 +6,28 @@
 //
 
 import SwiftUI
-import StoreKit
+import Glassfy
 
 struct PaywallView: View {
     
-    @EnvironmentObject private var purchaseManager: PurchaseManager
-    
-    @State private var products: [Product] = []
+    @State private var products: [Glassfy.Sku] = []
+    @State private var hasUnlockedPro: Bool = false
     
     var body: some View {
         VStack(spacing: 20) {
-            if purchaseManager.hasUnlockedPro {
+            if hasUnlockedPro {
                 Text("Thank you for purchasing pro!")
             } else {
                 Text("Products")
-                ForEach(purchaseManager.products) { product in
+                ForEach(products, id: \.self) { sku in
                     Button {
                         Task {
-                            do {
-                                try await purchaseManager.purchase(product)
-                            } catch {
-                                print(error)
+                            if try await PurchaseManager.shared.purchase(sku: sku, plan: Premium(rawValue: sku.productId) ?? .monthly_premium) {
+                                hasUnlockedPro = true
                             }
                         }
                     } label: {
-                        Text("\(product.displayPrice) - \(product.displayName)")
+                        Text("\(sku.product.price) - \(sku.product.localizedTitle)")
                             .foregroundColor(.white)
                             .padding()
                             .background(.blue)
@@ -50,12 +47,8 @@ struct PaywallView: View {
                 }
             }
         }.task {
-            Task {
-                do {
-                    try await purchaseManager.loadProducts()
-                } catch {
-                    print(error)
-                }
+            if let sku = await PurchaseManager.shared.getProduct() {
+                products = PurchaseManager.shared.products
             }
         }
     }

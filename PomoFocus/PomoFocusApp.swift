@@ -6,18 +6,16 @@
 //
 
 import SwiftUI
+import Glassfy
 
 @main
 struct PomoFocusApp: App {
     
-    @StateObject private var purchaseManager = PurchaseManager()
-    
     var body: some Scene {
         WindowGroup {
             PaywallView()
-                .environmentObject(purchaseManager)
-                .task {
-                    await purchaseManager.updatePurchasedProducts()
+                .onAppear() {
+                    PurchaseManager.shared.configure()
                 }
         }
     }

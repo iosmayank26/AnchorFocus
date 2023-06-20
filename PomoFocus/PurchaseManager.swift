@@ -6,87 +6,64 @@
 //
 
 import Foundation
-import StoreKit
+import Glassfy
 
-@MainActor
-class PurchaseManager: ObservableObject {
+enum Premium: String, CaseIterable {
+    case monthly_premium
+    case yearly_premium
     
-    private let productIds = ["monthly_premium_anchorfocus_9.99", "yearly_premium_anchorfocus_99.99"]
+    var sku: String {
+        return rawValue
+    }
+}
+
+class PurchaseManager {
     
-    @Published private(set) var products: [Product] = []
-    @Published private(set) var purchasedProductIDs = Set<String>()
+    static let shared = PurchaseManager()
+    let apiKeyValue = "b9571f39bb7b42889ee0a9b27257f9a2"
+    var products: [Glassfy.Sku] = []
     
-    private var productsLoaded = false
-    private var updates: Task<Void, Never>? = nil
     
-    var hasUnlockedPro: Bool {
-        return !self.purchasedProductIDs.isEmpty
+    func configure() {
+        Glassfy.initialize(apiKey: apiKeyValue, watcherMode: false)
     }
     
-    
-    init() {
-        updates = observeTransactionUpdates()
-    }
-    
-    deinit {
-        updates?.cancel()
-    }
-    
-    private func observeTransactionUpdates() -> Task<Void, Never> {
-        Task(priority: .background) { [unowned self] in
-            for await verificationResult in Transaction.updates {
-                // Using verificationResult directly would be better
-                // but this way works for this tutorial
-                await self.updatePurchasedProducts()
+    func checkPermissions() {
+        Glassfy.permissions { permissions, error in
+            guard let permissions = permissions, error == nil else { return }
+            
+            if permissions[Premium.monthly_premium.rawValue]?.isValid == true {
+                //Do whatever you want here
             }
         }
     }
     
-    func updatePurchasedProducts() async {
-        for await result in Transaction.currentEntitlements {
-            guard case .verified(let transaction) = result else {
-                continue
-            }
-            
-            if transaction.revocationDate == nil {
-                self.purchasedProductIDs.insert(transaction.productID)
+    func purchase(sku: Glassfy.Sku, plan: Premium) async -> Bool {
+        do {
+            let transaction = try await Glassfy.purchase(sku: sku)
+            if transaction.permissions[plan.rawValue]?.isValid == true {
+                return true
             } else {
-                self.purchasedProductIDs.remove(transaction.productID)
+                return false
             }
+        } catch {
+            print(error.localizedDescription)
+            return false
         }
     }
     
-    func loadProducts() async throws {
-        guard !self.productsLoaded else { return }
-        self.products = try await Product.products(for: productIds)
-        self.productsLoaded = true
-    }
-    
-    func purchase(_ product: Product) async throws {
-        let result = try await product.purchase()
-        
-        switch result {
+    func getProduct() async -> [Glassfy.Sku]? {
+        do {
+            for premium in Premium.allCases {
+                let sku = try await Glassfy.sku(id: premium.rawValue)
+                products.append(sku)
+            }
+            return products
+        } catch {
+            print(error.localizedDescription)
+            return nil
             
-        case let .success(.verified(transaction)):
-            await transaction.finish()
-            await self.updatePurchasedProducts()
-            
-        case let .success(.unverified(_, error)):
-            // Successful purchase but transaction/receipt can't be verified
-            // Could be a jailbroken phone
-            break
-            
-        case .pending:
-            // Transaction waiting on SCA (Strong Customer Authentication) or
-            // approval from Ask to Buy
-            break
-            
-        case .userCancelled:
-            // ^^^
-            break
-            
-        @unknown default:
-            break
         }
     }
+    
 }
