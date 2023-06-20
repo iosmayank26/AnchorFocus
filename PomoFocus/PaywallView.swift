@@ -37,6 +37,17 @@ struct PaywallView: View {
                             .clipShape(Capsule())
                     }
                 }
+                Button {
+                    Task {
+                        do {
+                            try await AppStore.sync()
+                        } catch {
+                            print(error)
+                        }
+                    }
+                } label: {
+                    Text("Restore Purchases")
+                }
             }
         }.task {
             Task {
