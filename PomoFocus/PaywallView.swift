@@ -16,7 +16,7 @@ struct PaywallView: View {
     var body: some View {
         VStack(spacing: 20) {
             if hasUnlockedPro {
-                Text("Thank you for purchasing pro!")
+                ContentView()
             } else {
                 Text("Products")
                 ForEach(products, id: \.self) { sku in
