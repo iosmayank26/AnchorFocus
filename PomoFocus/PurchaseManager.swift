@@ -28,20 +28,26 @@ class PurchaseManager {
         Glassfy.initialize(apiKey: apiKeyValue, watcherMode: false)
     }
     
-    func checkPermissions() {
-        Glassfy.permissions { permissions, error in
-            guard let permissions = permissions, error == nil else { return }
-            
-            if permissions[Premium.monthly_premium.rawValue]?.isValid == true {
-                //Do whatever you want here
+    func hasPurchased() async -> Bool {
+        do {
+            let permissions = try await Glassfy.permissions()
+            for product in products {
+                if permissions[product.skuId]?.isValid == true {
+                    return true
+                }
             }
+            return false
+        } catch {
+            print(error.localizedDescription)
+            return false
         }
+        
     }
     
-    func purchase(sku: Glassfy.Sku, plan: Premium) async -> Bool {
+    func purchase(sku: Glassfy.Sku) async -> Bool {
         do {
             let transaction = try await Glassfy.purchase(sku: sku)
-            if transaction.permissions[plan.rawValue]?.isValid == true {
+            if transaction.permissions[sku.skuId]?.isValid == true {
                 return true
             } else {
                 return false
@@ -54,15 +60,33 @@ class PurchaseManager {
     
     func getProduct() async -> [Glassfy.Sku]? {
         do {
-            for premium in Premium.allCases {
-                let sku = try await Glassfy.sku(id: premium.rawValue)
-                products.append(sku)
+            let offerings = try await Glassfy.offerings()
+            if let offering = offerings["premium"] {
+                // display your offering's skus
+                for sku in offering.skus {
+                    products.append(sku)
+                }
             }
             return products
         } catch {
             print(error.localizedDescription)
             return nil
             
+        }
+    }
+    
+    func restorePurchase() async -> Bool {
+        do {
+            let permissions = try await Glassfy.restorePurchases()
+            for product in products {
+                if permissions[product.skuId]?.isValid == true {
+                    return true
+                }
+            }
+            return false
+        } catch {
+            print(error.localizedDescription)
+            return false
         }
     }
     

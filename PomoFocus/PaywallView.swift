@@ -22,7 +22,7 @@ struct PaywallView: View {
                 ForEach(products, id: \.self) { sku in
                     Button {
                         Task {
-                            if try await PurchaseManager.shared.purchase(sku: sku, plan: Premium(rawValue: sku.productId) ?? .monthly_premium) {
+                            if await PurchaseManager.shared.purchase(sku: sku) {
                                 hasUnlockedPro = true
                             }
                         }
@@ -36,10 +36,8 @@ struct PaywallView: View {
                 }
                 Button {
                     Task {
-                        do {
-                            try await AppStore.sync()
-                        } catch {
-                            print(error)
+                        if await PurchaseManager.shared.restorePurchase() == true {
+                            hasUnlockedPro = true
                         }
                     }
                 } label: {
@@ -49,6 +47,9 @@ struct PaywallView: View {
         }.task {
             if let sku = await PurchaseManager.shared.getProduct() {
                 products = PurchaseManager.shared.products
+            }
+            if await PurchaseManager.shared.hasPurchased() == true {
+                hasUnlockedPro = true
             }
         }
     }
