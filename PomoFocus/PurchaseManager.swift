@@ -8,14 +8,6 @@
 import Foundation
 import Glassfy
 
-enum Premium: String, CaseIterable {
-    case monthly_premium
-    case yearly_premium
-    
-    var sku: String {
-        return rawValue
-    }
-}
 
 class PurchaseManager {
     
@@ -41,7 +33,7 @@ class PurchaseManager {
             print(error.localizedDescription)
             return false
         }
-        
+
     }
     
     func purchase(sku: Glassfy.Sku) async -> Bool {
@@ -71,7 +63,7 @@ class PurchaseManager {
         } catch {
             print(error.localizedDescription)
             return nil
-            
+
         }
     }
     
